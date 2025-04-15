@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Test</title>
+</head>
+
+<body>
+    <h1>QR Code Test</h1>
+    <div id="reader" style="width: 300px; height: 300px;"></div>
+    <p id="result">Scan a QR code to see the result here.</p>
+    <p id="status">Status messages will appear here.</p>
+    <button id="reset-button">Reset</button>
+
+    <div id="lists">
+        <h2>Submitted</h2>
+        <ul id="submitted-list"></ul>
+        <h2>Not Submitted</h2>
+        <ul id="not-submitted-list"></ul>
+    </div>
+
+    <div id="history">
+        <h2>Submission History</h2>
+        <ul id="history-list"></ul>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
