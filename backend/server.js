@@ -3,38 +3,46 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const cors = require('cors');
 const path = require('path');
+const admin = require('firebase-admin');
+require('dotenv').config();
+
+// Load Firebase key from environment variable
+const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+const db = admin.firestore();
+const historyCollection = db.collection('submissionHistory');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const historyFilePath = './submission-history.json';
-
-// Ensure history file is initialized
-if (!fs.existsSync(historyFilePath)) {
-    fs.writeFileSync(historyFilePath, JSON.stringify([], null, 2));
+// Load history from Firestore
+async function loadHistory() {
+    const snapshot = await historyCollection.get();
+    const history = [];
+    snapshot.forEach(doc => history.push(doc.data()));
+    return history;
 }
 
-// Load history from file
-function loadHistory() {
-    if (fs.existsSync(historyFilePath)) {
-        const data = fs.readFileSync(historyFilePath, 'utf-8');
-        try {
-            return JSON.parse(data || '[]'); // Handle empty file as an empty array
-        } catch (error) {
-            console.error('Error parsing history file:', error);
-            return [];
-        }
-    }
-    return [];
-}
-
-// Save history to file
-function saveHistory(history) {
-    fs.writeFileSync(historyFilePath, JSON.stringify(history, null, 2));
+// Save history to Firestore
+async function saveHistory(id) {
+    console.log(`Saving to Firestore: ID = ${id}`);
+    await historyCollection.add({
+        id,
+        timestamp: new Date().toISOString()
+    });
+    console.log(`Successfully saved to Firestore: ID = ${id}`);
 }
 
 // Initialize history
-let submissionHistory = loadHistory();
+let submissionHistory = [];
+(async () => {
+    submissionHistory = await loadHistory();
+})();
 
 // Middleware
 app.use(bodyParser.json());
@@ -50,7 +58,7 @@ app.use((req, res, next) => {
 let submittedIds = [];
 
 // Endpoint to submit QR code data
-app.post('/submit', (req, res) => {
+app.post('/submit', async (req, res) => {
     const { id } = req.body;
     console.log(`Received ID: ${id}`);
     if (!id) {
@@ -59,8 +67,8 @@ app.post('/submit', (req, res) => {
 
     if (!submittedIds.includes(id)) {
         submittedIds.push(id);
+        await saveHistory(id);
         submissionHistory.push({ id, timestamp: new Date().toISOString() });
-        saveHistory(submissionHistory);
     }
 
     res.status(200).json({ message: 'ID submitted successfully', submittedIds });
@@ -72,10 +80,17 @@ app.get('/submitted', (req, res) => {
     res.status(200).json({ submittedIds });
 });
 
-// Endpoint to reset submitted IDs
-app.post('/reset', (req, res) => {
+// Update /reset endpoint to clear Firestore collection
+app.post('/reset', async (req, res) => {
     console.log('Resetting submitted IDs');
     submittedIds = [];
+
+    // Clear Firestore collection
+    const snapshot = await historyCollection.get();
+    const batch = db.batch();
+    snapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
     res.status(200).json({ message: 'Submitted IDs reset successfully' });
 });
 

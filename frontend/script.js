@@ -11,6 +11,9 @@ const historyListElement = document.getElementById('history-list');
 // Example list of all students (replace with actual data if available)
 const allStudents = ['001', '002', '003', '004', '005'];
 
+// const backendUrl = 'https://qr-homework.onrender.com'; // Replace with your Render backend URL
+const backendUrl = 'http://localhost:3000'; // Replace with your Render backend URL
+
 function updateSubmittedAndNotSubmittedLists() {
     submittedListElement.innerHTML = '';
     notSubmittedListElement.innerHTML = '';
@@ -32,18 +35,12 @@ function updateSubmittedAndNotSubmittedLists() {
 }
 
 function updateScannedList() {
-    // scannedListElement.innerHTML = ''; // Clear the list
-    // scannedResults.forEach((result) => {
-    //     const listItem = document.createElement('li');
-    //     listItem.textContent = result;
-    //     scannedListElement.appendChild(listItem);
-    // });
     updateSubmittedAndNotSubmittedLists();
 }
 
 // Fetch scanned results from the server
 function fetchScannedResults() {
-    fetch('http://localhost:3000/submitted')
+    fetch(`${backendUrl}/submitted`)
         .then(response => response.json())
         .then(data => {
             scannedResults.clear(); // Clear the current set
@@ -58,7 +55,7 @@ function fetchScannedResults() {
 
 // Fetch submission history from the server
 function fetchSubmissionHistory() {
-    fetch('http://localhost:3000/history')
+    fetch(`${backendUrl}/history`)
         .then(response => response.json())
         .then(data => {
             historyListElement.innerHTML = ''; // Clear the current list
@@ -90,7 +87,7 @@ function onScanSuccess(decodedText, decodedResult) {
     resultElement.textContent = `Scanned result: ${decodedText}`;
 
     // Send the scanned ID to the backend
-    fetch('http://localhost:3000/submit', {
+    fetch(`${backendUrl}/submit`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -126,7 +123,7 @@ html5QrCode.start(
 
 // Add event listener for the reset button
 document.getElementById('reset-button').addEventListener('click', () => {
-    fetch('http://localhost:3000/reset', {
+    fetch(`${backendUrl}/reset`, {
         method: 'POST',
     })
         .then(response => response.json())
