@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,6 +82,14 @@ app.post('/reset', (req, res) => {
 // Add endpoint to fetch submission history
 app.get('/history', (req, res) => {
     res.status(200).json({ history: submissionHistory });
+});
+
+// Serve static files from the frontend directory
+app.use(express.static(path.resolve(__dirname, '../frontend')));
+
+// Fallback route to serve index.html for any unknown routes
+app.use((req, res) => {
+    res.sendFile(path.resolve(__dirname, '../frontend/index.html'));
 });
 
 // Start the server
