@@ -65,6 +65,25 @@ app.use((req, res, next) => {
     next();
 });
 
+// Middleware to check authentication
+function authenticateUser(req, res, next) {
+    const token = req.headers['x-user-id']; // JWT token from request header
+
+    if (!token) {
+        console.error('JWT token is missing');
+        return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+        console.error('Invalid JWT token');
+        return res.status(401).json({ message: 'Invalid authentication token' });
+    }
+
+    req.userId = userId; // Attach userId to the request object
+    next();
+}
+
 // In-memory storage for submitted IDs
 let submittedIds = [];
 
@@ -78,6 +97,13 @@ function getUserIdFromToken(token) {
         return null;
     }
 }
+
+// Apply authentication middleware to all routes that require authentication
+app.use('/submit', authenticateUser);
+app.use('/bulk-submit', authenticateUser);
+app.use('/reset', authenticateUser);
+app.use('/history', authenticateUser);
+app.use('/students', authenticateUser);
 
 // Update /submit endpoint to decode user ID from JWT
 app.post('/submit', async (req, res) => {
@@ -159,7 +185,7 @@ app.get('/submitted', (req, res) => {
     res.status(200).json({ submittedIds });
 });
 
-// Update /reset endpoint to clear Firestore collection for the specific user
+// Update /reset endpoint to clear all data for a specific user
 app.post('/reset', async (req, res) => {
     const token = req.headers['x-user-id']; // JWT token from request header
 
@@ -174,22 +200,31 @@ app.post('/reset', async (req, res) => {
         return res.status(400).json({ message: 'Invalid JWT token' });
     }
 
-    console.log(`Resetting history for user: ${userId}`);
+    console.log(`Resetting all data for user: ${userId}`);
 
     try {
-        const userCollection = historyCollection.doc(userId).collection('submissionHistory');
-        const snapshot = await userCollection.get();
+        // Delete submission history
+        const historyCollection = db.collection('users').doc(userId).collection('submissionHistory');
+        const historySnapshot = await historyCollection.get();
         const batch = db.batch();
 
-        snapshot.forEach(doc => {
+        historySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // Delete students
+        const studentsCollection = db.collection('users').doc(userId).collection('students');
+        const studentsSnapshot = await studentsCollection.get();
+
+        studentsSnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
 
         await batch.commit();
-        res.status(200).json({ message: 'User history reset successfully' });
+        res.status(200).json({ message: 'All data reset successfully for user' });
     } catch (error) {
-        console.error('Error resetting user history:', error);
-        res.status(500).json({ message: 'Failed to reset user history', error: error.message });
+        console.error('Error resetting user data:', error);
+        res.status(500).json({ message: 'Failed to reset user data', error: error.message });
     }
 });
 
@@ -236,15 +271,28 @@ app.get('/students', async (req, res) => {
     }
 });
 
-// Update /students endpoint to handle duplicate IDs
+// Update /students endpoint to handle user-specific student registration
 app.post('/students', async (req, res) => {
     const { ids } = req.body;
+    const token = req.headers['x-user-id']; // JWT token from request header
+
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: 'Invalid or missing student IDs' });
     }
 
+    if (!token) {
+        console.error('JWT token is missing');
+        return res.status(400).json({ message: 'JWT token is required' });
+    }
+
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+        console.error('Invalid JWT token');
+        return res.status(400).json({ message: 'Invalid JWT token' });
+    }
+
     try {
-        const studentsCollection = db.collection('students');
+        const studentsCollection = db.collection('users').doc(userId).collection('students');
         const existingIds = new Set();
         const newIds = [];
 
@@ -254,7 +302,7 @@ app.post('/students', async (req, res) => {
 
         ids.forEach(id => {
             if (existingIds.has(id)) {
-                console.log(`Student ID ${id} is already registered.`);
+                console.log(`Student ID ${id} is already registered for user ${userId}.`);
             } else {
                 newIds.push(id);
             }
@@ -268,7 +316,7 @@ app.post('/students', async (req, res) => {
         });
 
         await batch.commit();
-        console.log(`Newly registered students: ${newIds}`);
+        console.log(`Newly registered students for user ${userId}: ${newIds}`);
 
         res.status(200).json({
             message: 'Students processed successfully',
