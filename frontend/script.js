@@ -270,7 +270,7 @@ document.getElementById('register-student-button').addEventListener('click', asy
     }
 });
 
-// Update Bulk Register button to register 1 to N
+// Update Bulk Register button to include userId in the request
 document.getElementById('bulk-register-button').addEventListener('click', async () => {
     const studentCountInput = document.getElementById('student-count');
     const studentCount = parseInt(studentCountInput.value.trim(), 10);
@@ -278,6 +278,13 @@ document.getElementById('bulk-register-button').addEventListener('click', async 
     if (isNaN(studentCount) || studentCount <= 0) {
         console.error('Invalid number of students');
         statusElement.textContent = 'Please enter a valid number of students';
+        return;
+    }
+
+    const idToken = await getUserIdToken();
+    if (!idToken) {
+        console.error('User is not authenticated');
+        statusElement.textContent = 'User is not authenticated';
         return;
     }
 
@@ -289,7 +296,8 @@ document.getElementById('bulk-register-button').addEventListener('click', async 
         const response = await fetch(`${backendUrl}/students`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-user-id': idToken
             },
             body: JSON.stringify({ ids: newStudentIds })
         });
