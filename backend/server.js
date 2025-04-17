@@ -179,10 +179,30 @@ app.post('/bulk-submit', async (req, res) => {
     }
 });
 
-// Endpoint to get all submitted IDs
-app.get('/submitted', (req, res) => {
-    console.log('Fetching submitted IDs');
-    res.status(200).json({ submittedIds });
+// Update /submitted endpoint to handle user-specific submission retrieval
+app.get('/submitted', async (req, res) => {
+    const token = req.headers['x-user-id']; // JWT token from request header
+
+    if (!token) {
+        console.error('JWT token is missing');
+        return res.status(400).json({ message: 'JWT token is required' });
+    }
+
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+        console.error('Invalid JWT token');
+        return res.status(400).json({ message: 'Invalid JWT token' });
+    }
+
+    try {
+        const submissionCollection = db.collection('users').doc(userId).collection('submissionHistory');
+        const snapshot = await submissionCollection.get();
+        const submittedIds = snapshot.docs.map(doc => doc.data().id);
+        res.status(200).json({ submittedIds });
+    } catch (error) {
+        console.error('Error fetching submission history from Firestore:', error);
+        res.status(500).json({ message: 'Failed to fetch submission history', error: error.message });
+    }
 });
 
 // Update /reset endpoint to clear all data for a specific user
@@ -259,10 +279,24 @@ app.get('/history', async (req, res) => {
     }
 });
 
-// Endpoint to get all students
+// Update /students endpoint to handle user-specific student retrieval
 app.get('/students', async (req, res) => {
+    const token = req.headers['x-user-id']; // JWT token from request header
+
+    if (!token) {
+        console.error('JWT token is missing');
+        return res.status(400).json({ message: 'JWT token is required' });
+    }
+
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+        console.error('Invalid JWT token');
+        return res.status(400).json({ message: 'Invalid JWT token' });
+    }
+
     try {
-        const snapshot = await db.collection('students').get();
+        const studentsCollection = db.collection('users').doc(userId).collection('students');
+        const snapshot = await studentsCollection.get();
         const students = snapshot.docs.map(doc => doc.data().id);
         res.status(200).json({ students });
     } catch (error) {

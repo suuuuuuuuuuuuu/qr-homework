@@ -8,49 +8,53 @@
 </head>
 
 <body>
-    <h1>QR Code Test</h1>
-    <div id="reader" style="width: 300px; height: 300px;"></div>
-    <p id="result">Scan a QR code to see the result here.</p>
-    <p id="status">Status messages will appear here.</p>
-    <button id="reset-button">Reset</button>
-    <button id="submit-all-button">Submit All</button>
-
-    <div id="lists">
-        <h2>Submitted</h2>
-        <ul id="submitted-list"></ul>
-        <h2>Not Submitted</h2>
-        <ul id="not-submitted-list"></ul>
+    <div id="login-screen" style="display: block;">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button id="login-button">Login</button>
+        <button id="signup-button">Sign Up</button>
     </div>
 
-    <div id="history">
-        <h2>Submission History</h2>
-        <ul id="history-list"></ul>
-    </div>
+    <div id="main-screen" style="display: none;">
+        <h1>QR Code Test</h1>
+        <div id="reader" style="width: 300px; height: 300px;"></div>
+        <p id="result">Scan a QR code to see the result here.</p>
+        <p id="status">Status messages will appear here.</p>
+        <button id="reset-button">Reset</button>
+        <button id="submit-all-button">Submit All</button>
 
-    <div id="auth">
-        <h2>Authentication</h2>
-        <div id="user-info" style="display: none;">
-            <p id="user-email"></p>
-            <button id="logout-button">Logout</button>
+        <div id="lists">
+            <h2>Submitted</h2>
+            <ul id="submitted-list"></ul>
+            <h2>Not Submitted</h2>
+            <ul id="not-submitted-list"></ul>
         </div>
-        <div id="login-form">
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="password" placeholder="Password">
-            <button id="login-button">Login</button>
-            <button id="signup-button">Sign Up</button>
+
+        <div id="history">
+            <h2>Submission History</h2>
+            <ul id="history-list"></ul>
         </div>
-    </div>
 
-    <div id="student-registration">
-        <h2>Register New Student</h2>
-        <input type="text" id="student-id" placeholder="Enter Student ID">
-        <button id="register-student-button">Register Student</button>
-    </div>
+        <div id="student-registration">
+            <h2>Register New Student</h2>
+            <input type="text" id="student-id" placeholder="Enter Student ID">
+            <button id="register-student-button">Register Student</button>
+        </div>
 
-    <div id="bulk-registration">
-        <h2>Bulk Register Students</h2>
-        <input type="number" id="student-count" placeholder="Enter number of students">
-        <button id="bulk-register-button">Bulk Register</button>
+        <div id="bulk-registration">
+            <h2>Bulk Register Students</h2>
+            <input type="number" id="student-count" placeholder="Enter number of students">
+            <button id="bulk-register-button">Bulk Register</button>
+        </div>
+
+        <div id="auth">
+            <h2>Authentication</h2>
+            <div id="user-info" style="display: none;">
+                <p id="user-email"></p>
+                <button id="logout-button">Logout</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/html5-qrcode"></script>

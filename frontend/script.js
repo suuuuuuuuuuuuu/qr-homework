@@ -31,11 +31,18 @@ const backendUrl = 'https://qr-homework.onrender.com'; // Replace with your Rend
 // const backendUrl = 'http://localhost:3000'; // Replace with your Render backend URL
 
 function updateSubmittedAndNotSubmittedLists() {
+    console.log('Updating Submitted and Not Submitted lists');
+    console.log('All Students:', allStudents);
+    console.log('Scanned Results:', Array.from(scannedResults));
+
     submittedListElement.innerHTML = '';
     notSubmittedListElement.innerHTML = '';
 
     const submittedArray = Array.from(scannedResults);
     const notSubmittedArray = allStudents.filter(student => !scannedResults.has(student));
+
+    console.log('Submitted Array:', submittedArray);
+    console.log('Not Submitted Array:', notSubmittedArray);
 
     submittedArray.forEach(id => {
         const listItem = document.createElement('li');
@@ -54,88 +61,111 @@ function updateScannedList() {
     updateSubmittedAndNotSubmittedLists();
 }
 
-// Helper function to get the user ID token
+// Enhanced getUserIdToken with detailed error handling
 async function getUserIdToken() {
-    const user = auth.currentUser;
-    if (user) {
-        return await getIdToken(user);
+    try {
+        const user = auth.currentUser;
+        if (user) {
+            return await getIdToken(user);
+        } else {
+            console.warn('No user is currently logged in');
+            statusElement.textContent = 'Please log in to continue';
+            return null;
+        }
+    } catch (error) {
+        console.error('Error fetching user ID token:', error);
+        statusElement.textContent = 'Error fetching user ID token. Please try logging in again.';
+        return null;
     }
-    return null;
 }
 
-// Fetch scanned results from the server
-async function fetchScannedResults() {
+// Redirect to login if user is not authenticated
+async function fetchWithUserId(url, options = {}) {
     const idToken = await getUserIdToken();
     if (!idToken) {
         console.error('User is not authenticated');
-        return;
+        statusElement.textContent = 'Redirecting to login...';
+        setTimeout(() => {
+            // Redirect to login page or show login form
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('main-screen').style.display = 'none';
+        }, 2000);
+        throw new Error('User is not authenticated');
     }
 
-    fetch(`${backendUrl}/submitted`, {
-        headers: {
-            'x-user-id': idToken
-        }
-    })
-        .then(response => response.json())
-        .then(data => {
+    const headers = {
+        ...options.headers,
+        'x-user-id': idToken
+    };
+
+    return fetch(url, { ...options, headers });
+}
+
+// Ensure API calls are only made when the user is authenticated
+async function safeApiCall(apiFunction) {
+    const idToken = await getUserIdToken();
+    if (!idToken) {
+        console.error('User is not authenticated. Aborting API call.');
+        statusElement.textContent = 'Please log in to continue.';
+        return null;
+    }
+    return apiFunction();
+}
+
+// Add detailed logging for API responses
+async function fetchScannedResults() {
+    return safeApiCall(async () => {
+        try {
+            const response = await fetchWithUserId(`${backendUrl}/submitted`);
+            const data = await response.json();
+            console.log('Scanned Results API Response:', data);
             scannedResults.clear(); // Clear the current set
             data.submittedIds.forEach(id => scannedResults.add(id)); // Add server data to the set
             updateScannedList(); // Update the displayed list
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error fetching scanned results:', error);
             statusElement.textContent = 'Error fetching scanned results';
-        });
+        }
+    });
 }
 
 // Fetch submission history from the server
 async function fetchSubmissionHistory() {
-    const idToken = await getUserIdToken();
-    if (!idToken) {
-        console.error('User is not authenticated');
-        return;
-    }
-
-    fetch(`${backendUrl}/history`, {
-        headers: {
-            'x-user-id': idToken
-        }
-    })
-        .then(response => response.json())
-        .then(data => {
+    return safeApiCall(async () => {
+        try {
+            const response = await fetchWithUserId(`${backendUrl}/history`);
+            const data = await response.json();
             historyListElement.innerHTML = ''; // Clear the current list
             data.history.forEach(entry => {
                 const listItem = document.createElement('li');
                 listItem.textContent = `ID: ${entry.id}, Timestamp: ${entry.timestamp}`;
                 historyListElement.appendChild(listItem);
             });
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error fetching submission history:', error);
             statusElement.textContent = 'Error fetching submission history';
-        });
-}
-
-// Function to fetch and update allStudents
-async function fetchAndUpdateAllStudents() {
-    try {
-        const response = await fetch(`${backendUrl}/students`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json();
-        allStudents.length = 0; // Clear the current list
-        allStudents.push(...data.students); // Update with new data
-        updateScannedList(); // Refresh the displayed lists
-        console.log('Updated allStudents:', allStudents);
-    } catch (error) {
-        console.error('Error fetching all students:', error);
-        statusElement.textContent = 'Error fetching all students';
-    }
+    });
 }
 
-// Call fetchAndUpdateAllStudents on app startup
-fetchAndUpdateAllStudents();
+// Ensure updateSubmittedAndNotSubmittedLists is called after data fetch
+async function fetchAndUpdateAllStudents() {
+    return safeApiCall(async () => {
+        try {
+            const response = await fetchWithUserId(`${backendUrl}/students`);
+            const data = await response.json();
+            console.log('All Students API Response:', data);
+            allStudents.length = 0; // Clear the current list
+            allStudents.push(...data.students); // Update with new data
+            updateScannedList(); // Refresh the displayed lists
+            updateSubmittedAndNotSubmittedLists(); // Ensure Not Submitted list is updated
+            console.log('Updated allStudents:', allStudents);
+        } catch (error) {
+            console.error('Error fetching all students:', error);
+            statusElement.textContent = 'Error fetching all students';
+        }
+    });
+}
 
 async function onScanSuccess(decodedText, decodedResult) {
     if (!scannedResults.has(decodedText)) {
@@ -167,40 +197,21 @@ html5QrCode.start(
 
 // Add event listener for the reset button
 document.getElementById('reset-button').addEventListener('click', async () => {
-    const idToken = await getUserIdToken();
-    if (!idToken) {
-        console.error('User is not authenticated');
-        return;
+    try {
+        const response = await fetchWithUserId(`${backendUrl}/reset`, { method: 'POST' });
+        const data = await response.json();
+        console.log('Reset successful:', data);
+        scannedResults.clear(); // Clear the local set
+        updateScannedList(); // Update the displayed list
+        statusElement.textContent = 'Submitted list has been reset.';
+    } catch (error) {
+        console.error('Error resetting submitted list:', error);
+        statusElement.textContent = 'Error resetting submitted list.';
     }
-
-    fetch(`${backendUrl}/reset`, {
-        method: 'POST',
-        headers: {
-            'x-user-id': idToken
-        }
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Reset successful:', data);
-            scannedResults.clear(); // Clear the local set
-            updateScannedList(); // Update the displayed list
-            statusElement.textContent = 'Submitted list has been reset.';
-        })
-        .catch(error => {
-            console.error('Error resetting submitted list:', error);
-            statusElement.textContent = 'Error resetting submitted list.';
-        });
 });
 
 // Update Submit All button to refresh history after submission
 document.getElementById('submit-all-button').addEventListener('click', async () => {
-    const idToken = await getUserIdToken();
-    if (!idToken) {
-        console.error('User is not authenticated');
-        statusElement.textContent = 'User is not authenticated';
-        return;
-    }
-
     const ids = Array.from(scannedResults);
     if (ids.length === 0) {
         console.warn('No IDs to submit');
@@ -208,31 +219,25 @@ document.getElementById('submit-all-button').addEventListener('click', async () 
         return;
     }
 
-    fetch(`${backendUrl}/bulk-submit`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': idToken
-        },
-        body: JSON.stringify({ ids }),
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Bulk submit successful:', data);
-            statusElement.textContent = 'All IDs submitted successfully';
-            scannedResults.clear(); // Clear the local set after successful submission
-            updateScannedList(); // Update the displayed list
-            fetchSubmissionHistory(); // Refresh the history after submission
-        })
-        .catch(error => {
-            console.error('Error during bulk submit:', error);
-            statusElement.textContent = 'Error during bulk submit';
+    try {
+        const response = await fetchWithUserId(`${backendUrl}/bulk-submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids }),
         });
+
+        const data = await response.json();
+        console.log('Bulk submit successful:', data);
+        statusElement.textContent = 'All IDs submitted successfully';
+        scannedResults.clear(); // Clear the local set after successful submission
+        updateScannedList(); // Update the displayed list
+        fetchSubmissionHistory(); // Refresh the history after submission
+    } catch (error) {
+        console.error('Error during bulk submit:', error);
+        statusElement.textContent = 'Error during bulk submit';
+    }
 });
 
 // Update Register Student button to refresh allStudents after registration
@@ -247,17 +252,13 @@ document.getElementById('register-student-button').addEventListener('click', asy
     }
 
     try {
-        const response = await fetch(`${backendUrl}/students`, {
+        const response = await fetchWithUserId(`${backendUrl}/students`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ id: studentId })
         });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
 
         const data = await response.json();
         console.log('Student registered successfully:', data);
@@ -281,30 +282,18 @@ document.getElementById('bulk-register-button').addEventListener('click', async 
         return;
     }
 
-    const idToken = await getUserIdToken();
-    if (!idToken) {
-        console.error('User is not authenticated');
-        statusElement.textContent = 'User is not authenticated';
-        return;
-    }
-
     try {
         // Generate sequential student IDs from 1 to N
         const newStudentIds = Array.from({ length: studentCount }, (_, i) => (i + 1).toString());
 
         // Send the new student IDs to the server
-        const response = await fetch(`${backendUrl}/students`, {
+        const response = await fetchWithUserId(`${backendUrl}/students`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-user-id': idToken
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ ids: newStudentIds })
         });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
 
         const data = await response.json();
         console.log('Bulk registration successful:', data);
@@ -325,16 +314,19 @@ const loginButton = document.getElementById('login-button');
 const signupButton = document.getElementById('signup-button');
 const logoutButton = document.getElementById('logout-button');
 
-// Login
+// Ensure login button hides login screen and shows main screen on success
 loginButton.addEventListener('click', () => {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
             console.log('Logged in:', userCredential.user);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-screen').style.display = 'block';
         })
         .catch((error) => {
             console.error('Login error:', error);
+            statusElement.textContent = 'Login failed. Please check your credentials and try again.';
         });
 });
 
@@ -362,25 +354,45 @@ logoutButton.addEventListener('click', () => {
         });
 });
 
-// Monitor authentication state
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        console.log('User is logged in:', user);
-        userInfo.style.display = 'block';
-        loginForm.style.display = 'none';
-        userEmail.textContent = `Logged in as: ${user.email}`;
+// Ensure proper initialization of login and main screens
+window.addEventListener('DOMContentLoaded', () => {
+    const loginScreen = document.getElementById('login-screen');
+    const mainScreen = document.getElementById('main-screen');
 
-        // Fetch data only when the user is authenticated
+    // Monitor authentication state
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log('User is logged in:', user);
+            loginScreen.style.display = 'none';
+            mainScreen.style.display = 'block';
+            userEmail.textContent = `Logged in as: ${user.email}`;
+
+            // Fetch data only when the user is authenticated
+            fetchScannedResults();
+            fetchSubmissionHistory();
+            fetchAndUpdateAllStudents();
+        } else {
+            console.log('No user is logged in');
+            loginScreen.style.display = 'block';
+            mainScreen.style.display = 'none';
+
+            // Clear lists if the user logs out
+            scannedResults.clear();
+            updateScannedList();
+            historyListElement.innerHTML = '';
+        }
+    });
+
+    // Trigger data fetching immediately if already logged in
+    if (auth.currentUser) {
+        console.log('User is already logged in:', auth.currentUser);
+        loginScreen.style.display = 'none';
+        mainScreen.style.display = 'block';
+        userEmail.textContent = `Logged in as: ${auth.currentUser.email}`;
+
+        // Fetch data immediately
         fetchScannedResults();
         fetchSubmissionHistory();
-    } else {
-        console.log('No user is logged in');
-        userInfo.style.display = 'none';
-        loginForm.style.display = 'block';
-
-        // Clear lists if the user logs out
-        scannedResults.clear();
-        updateScannedList();
-        historyListElement.innerHTML = '';
+        fetchAndUpdateAllStudents();
     }
 });
