@@ -27,8 +27,8 @@ const historyListElement = document.getElementById('history-list');
 // Example list of all students (replace with actual data if available)
 const allStudents = [];
 
-// const backendUrl = 'https://qr-homework.onrender.com'; // Replace with your Render backend URL
-const backendUrl = 'http://localhost:3000'; // Replace with your Render backend URL
+const backendUrl = 'https://qr-homework.onrender.com'; // Replace with your Render backend URL
+// const backendUrl = 'http://localhost:3000'; // Replace with your Render backend URL
 
 function updateSubmittedAndNotSubmittedLists() {
     submittedListElement.innerHTML = '';
