@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { getAuth, signOut, getIdToken } from "firebase/auth";
 import { Html5Qrcode } from "html5-qrcode";
 import { auth } from "../App";
+import CameraScreen from "./CameraScreen";
 
 const backendUrl = process.env.REACT_APP_BACKEND_URL;
 
@@ -32,6 +33,7 @@ const MainScreen = ({ onLogout }) => {
     const [statusMessage, setStatusMessage] = useState("");
     const [scanResult, setScanResult] = useState("");
     const [allStudents, setAllStudents] = useState([]);
+    const [isCameraActive, setIsCameraActive] = useState(false);
     const qrCodeReaderRef = useRef(null);
 
     const fetchAllStudents = async () => {
@@ -56,41 +58,6 @@ const MainScreen = ({ onLogout }) => {
         fetchAllStudents();
     }, []);
 
-    useEffect(() => {
-        if (!qrCodeReaderRef.current) {
-            const html5QrCode = new Html5Qrcode("reader");
-            qrCodeReaderRef.current = html5QrCode;
-
-            html5QrCode
-                .start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: 250 },
-                    (decodedText) => {
-                        if (!scannedResults.has(decodedText)) {
-                            setScannedResults((prev) => new Set(prev).add(decodedText));
-                            setScanResult(decodedText);
-                            setStatusMessage("QRコードをスキャンしました。");
-                        }
-                    },
-                    (error) => {
-                        console.warn("QRコードスキャンエラー:", error);
-                    }
-                )
-                .catch((err) => {
-                    console.error("QRコードリーダーの起動エラー:", err);
-                    setStatusMessage("QRコードリーダーの起動に失敗しました。");
-                });
-        }
-
-        return () => {
-            if (qrCodeReaderRef.current && qrCodeReaderRef.current._isScanning) {
-                qrCodeReaderRef.current.stop().catch((err) => {
-                    console.warn("QRコードリーダーの停止エラー:", err);
-                });
-            }
-        };
-    }, [scannedResults]);
-
     const handleLogout = async () => {
         try {
             const auth = getAuth();
@@ -108,26 +75,44 @@ const MainScreen = ({ onLogout }) => {
         setStatusMessage("リセットしました。");
     };
 
+    const handleStartCamera = () => {
+        setIsCameraActive(true);
+    };
+
+    const handleStopCamera = () => {
+        setIsCameraActive(false);
+    };
+
+    const onScanSuccess = (decodedText) => {
+        setScannedResults((prev) => new Set(prev).add(decodedText));
+    };
+
     return (
         <div id="main-screen">
-            <h2>学生リスト</h2>
             <button onClick={handleLogout}>ログアウト</button>
-            <div id="reader" style={{ width: "300px", height: "300px" }}></div>
-            <p id="result">スキャン結果: {scanResult}</p>
-            <p id="status">ステータス: {statusMessage}</p>
-            <button onClick={handleReset}>リセット</button>
+            {!isCameraActive ? (
+                <div>
+                    <button onClick={handleReset}>リセット</button>
+                    <button onClick={handleStartCamera}>カメラ起動</button>
+                    <h2>学生リスト</h2>
+                    {/* <div id="reader" style={{ width: "300px", height: "300px" }}></div> */}
+                    <ul id="student-list">
+                        {allStudents.sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).map((student) => (
+                            <li
+                                key={student}
+                                className={scannedResults.has(student) ? "submitted" : "not-submitted"}
+                            >
+                                {student}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : (
+                <CameraScreen onScanSuccess={onScanSuccess} onStopCamera={handleStopCamera} />
+            )}
 
-            <ul id="student-list">
-                {allStudents.sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).map((student) => (
-                    <li
-                        key={student}
-                        className={scannedResults.has(student) ? "submitted" : "not-submitted"}
-                    >
-                        {student}
-                    </li>
-                ))}
-            </ul>
         </div>
+
     );
 };
 

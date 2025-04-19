@@ -105,3 +105,29 @@ h2 {
   background-color: #f8d7da;
   color: #721c24;
 }
+
+/* スマホ対応のレスポンシブデザイン */
+@media (max-width: 768px) {
+    #main-screen {
+        padding: 10px;
+    }
+
+    #student-list {
+        width: 100%;
+        font-size: 14px;
+    }
+
+    #student-list li {
+        padding: 8px;
+        margin: 4px;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+
+    h2 {
+        font-size: 18px;
+    }
+}
