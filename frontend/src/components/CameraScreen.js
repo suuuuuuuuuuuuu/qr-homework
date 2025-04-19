@@ -43,9 +43,23 @@ const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
     }, [onScanSuccess]);
 
     return (
-        <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+        <div
+        //     style={
+        //     {
+        //         width: "100vw",
+        //         height: "100vh",
+        //         display: "flex",
+        //         flexDirection: "column",
+        //         justifyContent: "center",
+        //         alignItems: "center",
+        //         backgroundColor: "#000",
+        //     }
+        // }
+        >
             <h2 style={{ color: "#fff", fontSize: "18px", marginBottom: "10px" }}>QRコードスキャン</h2>
-            <div id="reader" style={{ width: "90%", height: "60%", maxWidth: "400px", maxHeight: "300px" }}></div>
+            <div id="reader"
+            // style={{ width: "90%", height: "60%", maxWidth: "400px", maxHeight: "300px" }}
+            ></div>
             <button onClick={onStopCamera} style={{ marginTop: "20px", padding: "10px 20px", fontSize: "14px", borderRadius: "5px", backgroundColor: "#007BFF", color: "#fff", border: "none" }}>カメラ停止</button>
         </div>
     );
