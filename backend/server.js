@@ -364,7 +364,7 @@ app.post('/students', async (req, res) => {
 });
 
 // Serve static files from the frontend directory
-app.use(express.static(path.resolve(__dirname, '../frontend')));
+app.use(express.static(path.resolve(__dirname, '../frontend/build')));
 
 // Fallback route to serve index.html for any unknown routes
 app.use((req, res) => {
