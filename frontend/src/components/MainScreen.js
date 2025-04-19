@@ -87,6 +87,33 @@ const MainScreen = ({ onLogout }) => {
         setScannedResults((prev) => new Set(prev).add(decodedText));
     };
 
+    const handleSubmitAll = async () => {
+        const ids = Array.from(scannedResults);
+        if (ids.length === 0) {
+            console.warn('No IDs to submit');
+            alert('送信するIDがありません');
+            return;
+        }
+
+        try {
+            const response = await fetchWithUserId(`${process.env.REACT_APP_BACKEND_URL}/bulk-submit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ids }),
+            });
+
+            const data = await response.json();
+            console.log('Bulk submit successful:', data);
+            alert('全てのIDが正常に送信されました');
+            setScannedResults(new Set()); // Clear the local set after successful submission
+        } catch (error) {
+            console.error('Error during bulk submit:', error);
+            alert('送信中にエラーが発生しました');
+        }
+    };
+
     return (
         <div id="main-screen">
             <button onClick={handleLogout}>ログアウト</button>
@@ -94,8 +121,8 @@ const MainScreen = ({ onLogout }) => {
                 <div>
                     <button onClick={handleReset}>リセット</button>
                     <button onClick={handleStartCamera}>カメラ起動</button>
+                    <button onClick={handleSubmitAll}>送信</button>
                     <h2>学生リスト</h2>
-                    {/* <div id="reader" style={{ width: "300px", height: "300px" }}></div> */}
                     <ul id="student-list">
                         {allStudents.sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).map((student) => (
                             <li
