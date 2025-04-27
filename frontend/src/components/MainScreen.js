@@ -3,6 +3,7 @@ import { getAuth, signOut, getIdToken } from "firebase/auth";
 import { Html5Qrcode } from "html5-qrcode";
 import { auth } from "../App";
 import CameraScreen from "./CameraScreen";
+import { Button, List, ListItem, ListItemText, Modal, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from "@mui/material";
 
 const backendUrl = process.env.REACT_APP_BACKEND_URL;
 
@@ -29,51 +30,23 @@ async function fetchWithUserId(url, options = {}) {
 }
 
 const MainScreen = ({ onLogout }) => {
-    const [scannedResults, setScannedResults] = useState(new Set());
-    const [statusMessage, setStatusMessage] = useState("");
-    const [scanResult, setScanResult] = useState("");
-    const [allStudents, setAllStudents] = useState([]);
     const [isCameraActive, setIsCameraActive] = useState(false);
-    const qrCodeReaderRef = useRef(null);
-
-    const fetchAllStudents = async () => {
-        try {
-            const response = await fetchWithUserId(`${backendUrl}/students`);
-            console.log("Response status:", response.status);
-            console.log("Response headers:", response.headers);
-            const text = await response.text();
-            console.log("Raw response text:", text);
-
-            const data = JSON.parse(text);
-            console.log("Parsed response data:", data);
-
-            setAllStudents(data.students);
-        } catch (error) {
-            console.error("Error fetching all students:", error);
-            setStatusMessage("Error fetching all students");
-        }
-    };
+    const [scannedResults, setScannedResults] = useState(new Set());
+    const [allStudents, setAllStudents] = useState([]);
 
     useEffect(() => {
+        const fetchAllStudents = async () => {
+            try {
+                const response = await fetchWithUserId(`${process.env.REACT_APP_BACKEND_URL}/students`);
+                const data = await response.json();
+                setAllStudents(data.students || []);
+            } catch (error) {
+                console.error("Error fetching all students:", error);
+            }
+        };
+
         fetchAllStudents();
     }, []);
-
-    const handleLogout = async () => {
-        try {
-            const auth = getAuth();
-            await signOut(auth);
-            onLogout();
-        } catch (error) {
-            console.error("ログアウトエラー:", error.message);
-            alert("ログアウトに失敗しました: " + error.message);
-        }
-    };
-
-    const handleReset = () => {
-        setScannedResults(new Set());
-        setScanResult("");
-        setStatusMessage("リセットしました。");
-    };
 
     const handleStartCamera = () => {
         setIsCameraActive(true);
@@ -81,6 +54,10 @@ const MainScreen = ({ onLogout }) => {
 
     const handleStopCamera = () => {
         setIsCameraActive(false);
+    };
+
+    const handleReset = () => {
+        setScannedResults(new Set());
     };
 
     const onScanSuccess = (decodedText) => {
@@ -116,30 +93,48 @@ const MainScreen = ({ onLogout }) => {
 
     return (
         <div id="main-screen">
-            <button onClick={handleLogout}>ログアウト</button>
-            {!isCameraActive ? (
-                <div>
-                    <button onClick={handleReset}>リセット</button>
-                    <button onClick={handleStartCamera}>カメラ起動</button>
-                    <button onClick={handleSubmitAll}>送信</button>
-                    <h2>学生リスト</h2>
-                    <ul id="student-list">
-                        {allStudents.sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).map((student) => (
-                            <li
-                                key={student}
-                                className={scannedResults.has(student) ? "submitted" : "not-submitted"}
-                            >
-                                {student}
-                            </li>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                <Button variant="contained" color="primary" onClick={handleReset} style={{ margin: "10px" }}>
+                    リセット
+                </Button>
+                <Button variant="contained" color="secondary" onClick={handleStartCamera} style={{ margin: "10px" }}>
+                    カメラ起動
+                </Button>
+                <Button variant="contained" color="success" onClick={handleSubmitAll} style={{ margin: "10px" }}>
+                    送信
+                </Button>
+                <Button variant="contained" color="error" onClick={onLogout} style={{ margin: "10px" }}>
+                    ログアウト
+                </Button>
+            </div>
+            <h2>学生リスト</h2>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>学生ID</TableCell>
+                            <TableCell align="center">スキャン済み</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {allStudents.map((student, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{student}</TableCell>
+                                <TableCell align="center">
+                                    {scannedResults.has(student) ? "✔️" : "❌"}
+                                </TableCell>
+                            </TableRow>
                         ))}
-                    </ul>
-                </div>
-            ) : (
-                <CameraScreen onScanSuccess={onScanSuccess} onStopCamera={handleStopCamera} />
-            )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
+            <Modal open={isCameraActive} onClose={handleStopCamera}>
+                <Box style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.8)" }}>
+                    <CameraScreen onScanSuccess={onScanSuccess} onStopCamera={handleStopCamera} />
+                </Box>
+            </Modal>
         </div>
-
     );
 };
 
