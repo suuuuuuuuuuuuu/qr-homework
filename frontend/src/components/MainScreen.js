@@ -117,7 +117,7 @@ const MainScreen = ({ onLogout }) => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {allStudents.map((student, index) => (
+                        {allStudents.sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).map((student, index) => (
                             <TableRow key={index}>
                                 <TableCell>{student}</TableCell>
                                 <TableCell align="center">
