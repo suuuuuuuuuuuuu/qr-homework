@@ -1,22 +1,23 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
 const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
     const qrCodeReaderRef = useRef(null);
+    const [scannedText, setScannedText] = useState("");
 
     useEffect(() => {
         const initializeQrCodeScanner = () => {
             if (!qrCodeReaderRef.current) {
                 const html5QrCode = new Html5Qrcode("reader");
                 qrCodeReaderRef.current = html5QrCode;
-                const width = window.innerWidth
-                const height = window.innerHeight
-                const aspectRatio = width / height
-                const reverseAspectRatio = height / width
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const aspectRatio = width / height;
+                const reverseAspectRatio = height / width;
 
                 const mobileAspectRatio = reverseAspectRatio > 1.5
                     ? reverseAspectRatio + (reverseAspectRatio * 12 / 100)
-                    : reverseAspectRatio
+                    : reverseAspectRatio;
                 html5QrCode
                     .start(
                         { facingMode: "environment" },
@@ -30,7 +31,10 @@ const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
                                     : aspectRatio,
                             },
                         },
-                        onScanSuccess,
+                        (decodedText) => {
+                            setScannedText(decodedText); // スキャン結果を保存
+                            onScanSuccess(decodedText);
+                        },
                         (error) => {
                             console.warn("QR Code scan error:", error);
                         }
@@ -74,6 +78,11 @@ const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
         }}>
             {/* QRコードスキャンのカメラビューをここに配置 */}
             <div id="reader" style={{ width: "100%", height: "100%" }}></div>
+            {/* スキャン結果を表示するための要素 */}
+            <div style={{ position: "absolute", top: "10px", left: "50%", transform: "translateX(-50%)", color: "white", backgroundColor: "rgba(0, 0, 0, 0.7)", padding: "5px 10px", borderRadius: "5px" }}>
+                {scannedText}
+            </div>
+            {/* カメラを閉じるボタン */}
             <button onClick={onStopCamera} style={{ position: "absolute", top: "10px", right: "10px", zIndex: 1001, backgroundColor: "white", border: "none", padding: "10px", borderRadius: "5px" }}>閉じる</button>
         </div>
     );
