@@ -6,7 +6,11 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^7.0.2",
+    "@react-pdf/renderer": "^4.3.0",
     "cra-template-pwa": "2.0.0",
+    "jspdf": "^3.0.1",
+    "qrcode": "^1.5.4",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-scripts": "^5.0.1"
