@@ -322,11 +322,6 @@ app.use((req, res) => {
 const http = require('http');
 const https = require('https');
 
-// Load SSL certificates for local HTTPS
-const sslOptions = {
-    key: fs.readFileSync(path.resolve(__dirname, '../192.168.11.32-key.pem')),
-    cert: fs.readFileSync(path.resolve(__dirname, '../192.168.11.32.pem'))
-};
 
 if (process.env.NODE_ENV === 'production') {
     // Start HTTP server for Render deployment
@@ -334,6 +329,11 @@ if (process.env.NODE_ENV === 'production') {
         console.log(`HTTP Server is running on http://localhost:${PORT}`);
     });
 } else {
+    // Load SSL certificates for local HTTPS
+    const sslOptions = {
+        key: fs.readFileSync(path.resolve(__dirname, '../192.168.11.32-key.pem')),
+        cert: fs.readFileSync(path.resolve(__dirname, '../192.168.11.32.pem'))
+    };
     // Start HTTPS server for local development
     https.createServer(sslOptions, app).listen(3443, () => {
         console.log('HTTPS Server is running on https://192.168.11.32:3443');
