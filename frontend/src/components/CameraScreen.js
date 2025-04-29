@@ -9,11 +9,27 @@ const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
             if (!qrCodeReaderRef.current) {
                 const html5QrCode = new Html5Qrcode("reader");
                 qrCodeReaderRef.current = html5QrCode;
+                const width = window.innerWidth
+                const height = window.innerHeight
+                const aspectRatio = width / height
+                const reverseAspectRatio = height / width
 
+                const mobileAspectRatio = reverseAspectRatio > 1.5
+                    ? reverseAspectRatio + (reverseAspectRatio * 12 / 100)
+                    : reverseAspectRatio
                 html5QrCode
                     .start(
                         { facingMode: "environment" },
-                        { fps: 10, qrbox: 250 },
+                        {
+                            fps: 10,
+                            qrbox: 250,
+                            videoConstraints: {
+                                facingMode: 'environment',
+                                aspectRatio: width < 600
+                                    ? mobileAspectRatio
+                                    : aspectRatio,
+                            },
+                        },
                         onScanSuccess,
                         (error) => {
                             console.warn("QR Code scan error:", error);
@@ -27,11 +43,12 @@ const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
 
         // Ensure the reader element exists before initializing
         const readerElement = document.getElementById("reader");
-        if (readerElement) {
-            initializeQrCodeScanner();
-        } else {
-            console.error("Element with id='reader' not found in DOM");
+        if (!readerElement) {
+            console.error("Element with id='reader' not found in DOM. Aborting QR Code scanner initialization.");
+            return;
         }
+
+        initializeQrCodeScanner();
 
         return () => {
             if (qrCodeReaderRef.current && qrCodeReaderRef.current._isScanning) {
@@ -43,24 +60,21 @@ const CameraScreen = ({ onScanSuccess, onStopCamera }) => {
     }, [onScanSuccess]);
 
     return (
-        <div
-        //     style={
-        //     {
-        //         width: "100vw",
-        //         height: "100vh",
-        //         display: "flex",
-        //         flexDirection: "column",
-        //         justifyContent: "center",
-        //         alignItems: "center",
-        //         backgroundColor: "#000",
-        //     }
-        // }
-        >
-            <h2 style={{ color: "#fff", fontSize: "18px", marginBottom: "10px" }}>QRコードスキャン</h2>
-            <div id="reader"
-            // style={{ width: "90%", height: "60%", maxWidth: "400px", maxHeight: "300px" }}
-            ></div>
-            <button onClick={onStopCamera} style={{ marginTop: "20px", padding: "10px 20px", fontSize: "14px", borderRadius: "5px", backgroundColor: "#007BFF", color: "#fff", border: "none" }}>カメラ停止</button>
+        <div style={{
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "black",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            zIndex: 1000
+        }}>
+            {/* QRコードスキャンのカメラビューをここに配置 */}
+            <div id="reader" style={{ width: "100%", height: "100%" }}></div>
+            <button onClick={onStopCamera} style={{ position: "absolute", top: "10px", right: "10px", zIndex: 1001, backgroundColor: "white", border: "none", padding: "10px", borderRadius: "5px" }}>閉じる</button>
         </div>
     );
 };

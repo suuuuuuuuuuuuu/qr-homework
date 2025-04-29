@@ -45,15 +45,6 @@ let submissionHistory = [];
     submissionHistory = await loadHistory();
 })();
 
-// Save a new student to Firestore
-async function saveStudent(id) {
-    try {
-        await db.collection('students').add({ id });
-        console.log(`Student ${id} saved to Firestore`);
-    } catch (error) {
-        console.error('Error saving student:', error);
-    }
-}
 
 // Middleware
 app.use(bodyParser.json());
@@ -99,44 +90,13 @@ function getUserIdFromToken(token) {
 }
 
 // Apply authentication middleware to all routes that require authentication
-app.use('/submit', authenticateUser);
+// app.use('/submit', authenticateUser);
 app.use('/bulk-submit', authenticateUser);
-app.use('/reset', authenticateUser);
+// app.use('/reset', authenticateUser);
 app.use('/history', authenticateUser);
 app.use('/students', authenticateUser);
 
-// Update /submit endpoint to decode user ID from JWT
-app.post('/submit', async (req, res) => {
-    const { id } = req.body;
-    const token = req.headers['x-user-id']; // JWT token from request header
-
-    if (!id || !token) {
-        console.error('ID or JWT token is missing');
-        return res.status(400).json({ message: 'ID and JWT token are required' });
-    }
-
-    const userId = getUserIdFromToken(token);
-    if (!userId) {
-        console.error('Invalid JWT token');
-        return res.status(400).json({ message: 'Invalid JWT token' });
-    }
-
-    console.log(`Received ID: ${id} from User: ${userId}`);
-
-    try {
-        const userCollection = historyCollection.doc(userId).collection('submissionHistory');
-        await userCollection.add({
-            id,
-            timestamp: new Date().toISOString()
-        });
-        res.status(200).json({ message: 'ID submitted successfully' });
-    } catch (error) {
-        console.error('Error saving to Firestore:', error);
-        res.status(500).json({ message: 'Failed to submit ID', error: error.message });
-    }
-});
-
-// Add /bulk-submit endpoint for batch submission
+// Update /bulk-submit endpoint to include timestamps
 app.post('/bulk-submit', async (req, res) => {
     const { ids } = req.body;
     const token = req.headers['x-user-id']; // JWT token from request header
@@ -160,14 +120,14 @@ app.post('/bulk-submit', async (req, res) => {
     console.log(`Bulk submitting IDs for user: ${userId}`);
 
     try {
-        const userCollection = historyCollection.doc(userId).collection('submissionHistory');
+        const userCollection = db.collection('users').doc(userId).collection('submissionHistory');
         const batch = db.batch();
 
         ids.forEach(id => {
             const docRef = userCollection.doc(); // Generate a new document reference
             batch.set(docRef, {
                 id,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             });
         });
 
@@ -176,32 +136,6 @@ app.post('/bulk-submit', async (req, res) => {
     } catch (error) {
         console.error('Error during bulk submission:', error);
         res.status(500).json({ message: 'Failed to submit IDs', error: error.message });
-    }
-});
-
-// Update /submitted endpoint to handle user-specific submission retrieval
-app.get('/submitted', async (req, res) => {
-    const token = req.headers['x-user-id']; // JWT token from request header
-
-    if (!token) {
-        console.error('JWT token is missing');
-        return res.status(400).json({ message: 'JWT token is required' });
-    }
-
-    const userId = getUserIdFromToken(token);
-    if (!userId) {
-        console.error('Invalid JWT token');
-        return res.status(400).json({ message: 'Invalid JWT token' });
-    }
-
-    try {
-        const submissionCollection = db.collection('users').doc(userId).collection('submissionHistory');
-        const snapshot = await submissionCollection.get();
-        const submittedIds = snapshot.docs.map(doc => doc.data().id);
-        res.status(200).json({ submittedIds });
-    } catch (error) {
-        console.error('Error fetching submission history from Firestore:', error);
-        res.status(500).json({ message: 'Failed to fetch submission history', error: error.message });
     }
 });
 
@@ -248,38 +182,7 @@ app.post('/reset', async (req, res) => {
     }
 });
 
-// Update /history endpoint to decode user ID from JWT
-app.get('/history', async (req, res) => {
-    const token = req.headers['x-user-id']; // JWT token from request header
-
-    if (!token) {
-        console.error('JWT token is missing in the request');
-        return res.status(400).json({ message: 'JWT token is required' });
-    }
-
-    const userId = getUserIdFromToken(token);
-    if (!userId) {
-        console.error('Invalid JWT token');
-        return res.status(400).json({ message: 'Invalid JWT token' });
-    }
-
-    console.log(`Fetching history for user: ${userId}`);
-
-    try {
-        const userCollection = historyCollection.doc(userId).collection('submissionHistory');
-        const snapshot = await userCollection.get();
-        const history = snapshot.docs.map(doc => {
-            console.log(`Fetched document: ${doc.id}, data:`, doc.data());
-            return doc.data();
-        });
-        res.status(200).json({ history });
-    } catch (error) {
-        console.error('Error fetching from Firestore:', error);
-        res.status(500).json({ message: 'Failed to fetch history', error: error.message });
-    }
-});
-
-// Update /students endpoint to handle user-specific student retrieval
+// Update /students endpoint to return all student IDs
 app.get('/students', async (req, res) => {
     const token = req.headers['x-user-id']; // JWT token from request header
 
@@ -298,10 +201,55 @@ app.get('/students', async (req, res) => {
         const studentsCollection = db.collection('users').doc(userId).collection('students');
         const snapshot = await studentsCollection.get();
         const students = snapshot.docs.map(doc => doc.data().id);
+
         res.status(200).json({ students });
     } catch (error) {
         console.error('Error fetching students from Firestore:', error);
         res.status(500).json({ message: 'Failed to fetch students', error: error.message });
+    }
+});
+
+// Update /history endpoint to filter by date
+app.get('/history', async (req, res) => {
+    const token = req.headers['x-user-id']; // JWT token from request header
+    const { date } = req.query; // Get the date from query parameters
+
+    if (!token) {
+        console.error('JWT token is missing');
+        return res.status(400).json({ message: 'JWT token is required' });
+    }
+
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+        console.error('Invalid JWT token');
+        return res.status(400).json({ message: 'Invalid JWT token' });
+    }
+
+    if (!date) {
+        console.error('Date is missing');
+        return res.status(400).json({ message: 'Date is required' });
+    }
+
+    try {
+        const submissionCollection = db.collection('users').doc(userId).collection('submissionHistory');
+        const startOfDay = new Date(date).setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date).setHours(23, 59, 59, 999);
+
+        console.log(`Fetching submission history for date: ${date}`);
+        console.log(`Start of day: ${new Date(startOfDay).toISOString()}`);
+        console.log(`End of day: ${new Date(endOfDay).toISOString()}`);
+
+        const submissionSnapshot = await submissionCollection
+            .where('timestamp', '>=', new Date(startOfDay).toISOString())
+            .where('timestamp', '<=', new Date(endOfDay).toISOString())
+            .get();
+
+        const scannedIds = submissionSnapshot.docs.map(doc => doc.data().id);
+
+        res.status(200).json({ scannedIds });
+    } catch (error) {
+        console.error('Error fetching submission history from Firestore:', error);
+        res.status(500).json({ message: 'Failed to fetch submission history', error: error.message });
     }
 });
 
@@ -371,7 +319,23 @@ app.use((req, res) => {
     res.sendFile(path.resolve(__dirname, '../frontend/index.html'));
 });
 
-// Start the server
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+const http = require('http');
+const https = require('https');
+
+// Load SSL certificates for local HTTPS
+const sslOptions = {
+    key: fs.readFileSync(path.resolve(__dirname, '../192.168.11.32-key.pem')),
+    cert: fs.readFileSync(path.resolve(__dirname, '../192.168.11.32.pem'))
+};
+
+if (process.env.NODE_ENV === 'production') {
+    // Start HTTP server for Render deployment
+    http.createServer(app).listen(PORT, () => {
+        console.log(`HTTP Server is running on http://localhost:${PORT}`);
+    });
+} else {
+    // Start HTTPS server for local development
+    https.createServer(sslOptions, app).listen(3443, () => {
+        console.log('HTTPS Server is running on https://192.168.11.32:3443');
+    });
+}
