@@ -13,3 +13,5 @@ submission-history.json
 
 # Environment variables
 .env
+
+*.pem
