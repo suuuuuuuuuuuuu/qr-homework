@@ -4,6 +4,12 @@ import { Html5Qrcode } from "html5-qrcode";
 import { auth } from "../App";
 import CameraScreen from "./CameraScreen";
 import { Button, List, ListItem, ListItemText, Modal, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from "@mui/material";
+import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import MyDocument from './MyDocument'
+import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+
 
 const backendUrl = process.env.REACT_APP_BACKEND_URL;
 
@@ -203,6 +209,14 @@ const MainScreen = ({ onLogout }) => {
                     <CameraScreen onScanSuccess={onScanSuccess} onStopCamera={handleStopCamera} />
                 </Box>
             </Modal>
+            <PDFDownloadLink
+                document={<MyDocument texts={allStudents} />}
+                fileName="QR.pdf"
+            >
+                <Button variant='contained'>
+                    QRコードをダウンロード
+                </Button>
+            </PDFDownloadLink>
         </div>
     );
 };
